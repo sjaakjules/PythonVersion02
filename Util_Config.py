@@ -11,9 +11,10 @@ import pygame
 
 FPS = 60
 
-PLAYER_COLORS = {
-	'Player 1': '#a1dc62',
-	'Player 2': '#ad63ea',
+COLOURS = {
+	'Player 1': '#a1dc62',  # Green
+	'Player 2': '#ad63ea',  # Purple
+    'Grid': '#ffe175',  # Yellow
 }
 
 ELEMENT_COLORS = {
@@ -23,11 +24,12 @@ ELEMENT_COLORS = {
     'Water': '#2eb2ea',
 }
 
+
 FONTS = {
     'title': pygame.font.Font(None, 48),
     'subtitle': pygame.font.Font(None, 40),
     'selection': pygame.font.Font(None, 36),
-    'debug': pygame.font.Font(None, 24)
+    'debug': pygame.font.Font(None, 24),
 }
 
 UI_COLOURS = {

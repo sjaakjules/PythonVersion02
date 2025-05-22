@@ -68,7 +68,8 @@ class Card:
 	def _dicts_equal(d1, d2):
 		"""Compare two dictionaries for equality, ignoring trivial newline formatting."""
 		def normalize(d):
-			if not d: return {}
+			if not d: 
+				return {}
 			return {
 				k: v.strip().replace("\r", "").replace("\n", " ")
 				if isinstance(v, str) else v
@@ -83,6 +84,7 @@ class Card:
 		version = "Single" if self.has_single_version() else f"Variants in: {', '.join(self.set_differences)}"
 		return f"{self.name} [{self.type}] - {version}"
 	
+ 
 '''
 	Curiosa Card Data Example:
 		"identifier": "avatar_of_air",

@@ -8,6 +8,7 @@ Responsibilities:
 	•	Enforces rule timing: non-active player places triggered events first, player priority, and event resolution
 '''
 
+
 class RulesEngine:
     def __init__(self):
         self.ability_lookup = {}

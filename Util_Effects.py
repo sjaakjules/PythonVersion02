@@ -11,17 +11,22 @@ Responsibilities:
 
 import math
 
+
 def wiggle(obj):
     print(f"Wiggle effect on {obj}")
+
 
 def fade(obj):
     print(f"Fade effect on {obj}")
 
+
 def greyscale(obj):
     print(f"Greyscale effect on {obj}")
 
+
 def flip(card):
     print(f"Flip effect on {card}")
+
 
 def tap(card):
     print(f"Tap effect on {card}")

@@ -66,6 +66,7 @@ QUADRUPLE_ELEMENT = {
     'templar': "https://curiosa.io/decks/cm29j1szy0030j0oagg8ujs0t"
 }
 
+
 def get_all_precon_alpha():
     return list(PRECON_ALPHA.values())
 

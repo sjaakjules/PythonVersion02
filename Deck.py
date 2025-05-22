@@ -12,6 +12,7 @@ Responsibilities:
 import random
 from Card import Card
 
+
 class Deck:
     def __init__(self, cards):
         self.atlas = [card for card in cards if card.card_type == 'Site']
