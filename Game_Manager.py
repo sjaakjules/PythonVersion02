@@ -9,15 +9,16 @@ Responsibilities:
 	•	Tracks player state: life total, mana pool (reset per turn), and threshold levels from sites.
 '''
 
-from Util_Loader import load_board, load_decks
+from Util_Loader import select_game_board, select_decks
 from Board import Board
 from Deck import Deck
 from Player import Player
 from Rules_Engine import RulesEngine
+from GUI_Manager import GUI_Manager
 
 
 class Game_Manager:
-    def __init__(self, gui_manager):
+    def __init__(self, gui_manager: GUI_Manager) -> None:
         self.gui_manager = gui_manager
         self.board = Board()
         self.players = [Player(0), Player(1)]
@@ -27,15 +28,16 @@ class Game_Manager:
         self.turn = 0
 
     def run(self):
-        load_board(self.board)
-        self.state = 1
-        load_decks(self.players[0].deck, self.players[1].deck)
-        self.state = 2
+        self.state = self.gui_manager.run()
+        
         print("Game started!")
         while not self.is_game_over():
-            self.start_phase()
-            self.main_phase()
-            self.end_phase()
+            while not self.start_phase():
+                pass
+            while not self.main_phase():
+                pass
+            while not self.end_phase():
+                pass
             self.turn += 1
 
     def is_game_over(self):

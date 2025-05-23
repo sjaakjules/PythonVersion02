@@ -11,7 +11,7 @@ import json
 import os
 import requests
 from typing import Dict, List, Optional, Tuple, Union, Any
-from GUI_Manager import setup_board_selection_screen
+import GUI_Manager as GUI
 from Card import Card
 from Deck import Deck
 from Board import Board
@@ -29,7 +29,7 @@ SORCERY_API = "https://api.sorcerytcg.com/api/cards"
 CARD_DATA_PATH = "data/CardList.json"
 
 
-def select_game_board() -> str:
+def select_game_board(gui: GUI) -> str:
     """
     Show game board selection screen and return the selected board path.
     
@@ -38,7 +38,7 @@ def select_game_board() -> str:
     """
     # Show game board selection screen.
     #   - get all images in BACKGROUND_ASSET_DIR, not subfolders, and display them in a scrollable grid.
-    board_options = setup_board_selection_screen()
+    
     #   - As the user moves their mouse around, if it hovers over one, the image pulses. 
     #   - The user clicks on one, the image grows to 50% of the screen as an overlay, if clicked again it is selected, 
     #     if outside image selected it disapears showing the grid of images.
@@ -125,115 +125,3 @@ def load_decks(player1_deck: Optional[str] = None, player2_deck: Optional[str] =
     deck2 = Deck(deck2_cards)
     
     return deck1, deck2
-
-
-def extract_deck_id(url_or_id: str) -> str:
-    """
-    Extract the deck ID from a Curiosa URL or ID.
-    
-    Args:
-        url_or_id (str): Full URL or deck ID
-        
-    Returns:
-        str: The deck ID
-    """
-    if '/' in url_or_id:
-        return url_or_id.rstrip('/').split('/')[-1]
-    return url_or_id
-
-
-def get_curiosa_deck(deck_url_or_id: str) -> Dict[str, Any]:
-    """
-    Fetch deck data from Curiosa API.
-    
-    Args:
-        deck_url_or_id (str): Full URL or deck ID
-        
-    Returns:
-        Dict[str, Any]: Deck data from Curiosa API
-    """
-    deck_id = extract_deck_id(deck_url_or_id)
-    url = f"{CORS_PROXY}{CURIOSA_API_BASE}{deck_id}"
-    response = requests.get(url)
-    response.raise_for_status()
-    return response.json()
-
-
-def fetch_all_cards_metadata() -> List[Dict[str, Any]]:
-    """
-    Fetch or load from cache all card metadata from Sorcery API.
-    
-    Returns:
-        List[Dict[str, Any]]: List of card metadata
-    """
-    if os.path.exists(CARD_DATA_PATH):
-        with open(CARD_DATA_PATH, 'r') as f:
-            all_data = json.load(f)
-    else:
-        # Ensure data directory exists
-        os.makedirs(os.path.dirname(CARD_DATA_PATH), exist_ok=True)
-        
-        # Fetch and save data
-        response = requests.get(SORCERY_API)
-        all_data = response.json()
-        
-        with open(CARD_DATA_PATH, 'w') as f:
-            json.dump(all_data, f, indent=4, sort_keys=True)
-
-    return all_data
-
-
-def match_curiosa_to_sorcery(curiosa_cards: List[Dict[str, Any]], 
-                             all_sorcery_cards: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Match Curiosa cards with Sorcery API card data.
-    
-    Args:
-        curiosa_cards (List[Dict[str, Any]]): Cards from Curiosa
-        all_sorcery_cards (List[Dict[str, Any]]): All cards from Sorcery API
-        
-    Returns:
-        List[Dict[str, Any]]: Matched cards with full details
-    """
-    matched = []
-    for card in curiosa_cards:
-        name = card["name"].strip().lower()
-        match = next((c for c in all_sorcery_cards if c["name"].strip().lower() == name), None)
-        if match:
-            matched.append({
-                "name": card["name"],
-                "quantity": card["quantity"],
-                "img_url": card["src"],
-                "details": match
-            })
-        else:
-            print(f"❌ Not found in API: {card['name']}")
-    return matched
-
-
-def get_deck_json_from_curiosa(deck_url: str) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Get full deck data from Curiosa and match with Sorcery API.
-    
-    Args:
-        deck_url (str): URL of the deck on Curiosa
-        
-    Returns:
-        Dict[str, List[Dict[str, Any]]]: Full deck data with matched card details
-    """
-    curiosa_data = get_curiosa_deck(deck_url)
-    
-    with open("tmp/curiosa_deck.json", 'w') as f:
-        json.dump(curiosa_data, f, indent=4, ensure_ascii=False)
-        
-    sorcery_cards = fetch_all_cards_metadata()
-
-    full_deck = {}
-    for section in ["avatar", "atlas", "spellbook", "sideboard"]:
-        matched_cards = match_curiosa_to_sorcery(curiosa_data.get(section, []), sorcery_cards)
-        full_deck[section] = matched_cards
-
-    with open("tmp/full_deck.json", 'w') as f:
-        json.dump(full_deck, f, indent=4, ensure_ascii=False)
-        
-    return full_deck

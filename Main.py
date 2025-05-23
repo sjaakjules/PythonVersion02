@@ -27,8 +27,8 @@ from Game_Manager import Game_Manager
 from GUI_Manager import GUI_Manager
 
 if __name__ == "__main__":
+        
     gui_manager = GUI_Manager()
     game = Game_Manager(gui_manager)
-    gui_manager.game_manager = game  # Set the game_manager reference
     game.run()
     
