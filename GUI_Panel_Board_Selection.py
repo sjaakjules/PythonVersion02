@@ -2,7 +2,7 @@ import pygame
 from GUI_Panel import Panel
 import Util_Config as config
 import Util_Effects as effects
-from Util_Debug import DebugDisplay
+from Util_Debug import Debug_Display
 import time
 
 # Panel layout settings
@@ -63,7 +63,7 @@ class pBoard_Selection(Panel):
     
     def __init__(self, screen: pygame.Surface):
         # Initialize debug display first
-        self.debug_display = DebugDisplay(screen, pygame.time.Clock())
+        self.debug_display = Debug_Display(screen, pygame.time.Clock())
         
         # Then call parent constructor
         super().__init__(screen, width=PANEL_WIDTH_RATIO, height=PANEL_HEIGHT_RATIO)

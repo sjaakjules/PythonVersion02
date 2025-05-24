@@ -1,8 +1,11 @@
 import pygame
-import Util_Effects
 import Util_Config as config
 from Util_Effect_Factory import EffectFactory
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from GUI_Manager import GUI_Manager
+
 from GUI_Panel import Panel
 from GUI_Panel_Board_Selection import pBoard_Selection
 from GUI_Panel_Deck_Selection import pDeck_Selection
@@ -11,24 +14,6 @@ from GUI_Panel_Deck_Selection import pDeck_Selection
 class Main_Window:
     # Effect settings
     EFFECT_SETTINGS = {
-        'in_effect': {
-            'type': 'fade',
-            'settings': {
-                'start_alpha': 0,
-                'end_alpha': 255,
-                'duration': 2.0,
-                'loop': False
-            }
-        },
-        'out_effect': {
-            'type': 'fade',
-            'settings': {
-                'start_alpha': 255,
-                'end_alpha': 0,
-                'duration': 0.5,
-                'loop': False
-            }
-        },
         'button_effect': {
             'type': 'pulse',
             'settings': {
@@ -38,15 +23,9 @@ class Main_Window:
         }
     }
     
-    def __init__(self, screen: pygame.Surface) -> None:
+    def __init__(self, screen: pygame.Surface, ui: 'GUI_Manager') -> None:
         self.screen = screen
-        # Initialize effects
-        self.in_effect = EffectFactory.create_effect_from_config(self.EFFECT_SETTINGS['in_effect'])
-        self.out_effect = EffectFactory.create_effect_from_config(self.EFFECT_SETTINGS['out_effect'])
-        
-        # Preload and cache images
-        self.title_image = pygame.image.load('assets/Icons/Sorcery Title.png').convert_alpha()
-        self.title_rect = self.title_image.get_rect(center=(1920 // 2, int(1080 // 2)))
+        self.ui = ui
         
         # Preload background image and cache it
         self.background_image = pygame.image.load('assets/Icons/Sorcery_Screen.png').convert()
@@ -56,14 +35,8 @@ class Main_Window:
         self.scaled_backgrounds = {}
         self.update_scaled_backgrounds()
         
-        # State tracking
-        self.showing_title = True  # Start with title phase
-        self.transitioning = False  # Track if we're in transition between phases
-        self.transition_complete = False  # Track if transition is complete
-        self.title_fade_complete = False  # Track if title fade is complete
-        
         # Menu state
-        self.showing_menu = False
+        self.showing_menu = True
         self.clicked_button = None  # Track which button was clicked
         self.menu_buttons = {
             'add_board': {
@@ -96,44 +69,18 @@ class Main_Window:
         
         # Update button positions and initialize pulse effects
         self.update_menu_button_positions()
-        
-    def start_title_fade_in(self) -> None:
-        """Start the title screen fade in effect."""
-        self.showing_title = True
-        self.transitioning = False
-        self.transition_complete = False
-        self.title_fade_complete = False
-        self.in_effect = EffectFactory.create_effect_from_config(self.EFFECT_SETTINGS['in_effect'])
-        
-    def start_transition(self) -> None:
-        """Start the transition from title to background."""
-        if not self.transitioning:  # Only start transition if not already transitioning
-            self.showing_title = False
-            self.transitioning = True
-            # Start fade out
-            self.out_effect = EffectFactory.create_effect_from_config(self.EFFECT_SETTINGS['out_effect'])
-            # Start fade in
-            self.in_effect = EffectFactory.create_effect_from_config(self.EFFECT_SETTINGS['in_effect'])
             
     def update(self) -> None:
         """Update window effects."""
-        if self.showing_title:
-            self.in_effect.update()
-            # Check if fade in is complete
-            if self.in_effect.get_state() >= 255:
-                self.title_fade_complete = True
-        elif self.transitioning:
-            self.out_effect.update()
-            self.in_effect.update()
-            # Check if transition is complete
-            if self.out_effect.get_state() <= 0 and self.in_effect.get_state() >= 255:
-                self.transitioning = False
-                self.transition_complete = True
-                self.showing_menu = True
-                
         # Update active panel
         if self.active_panel:
             self.active_panel.update()
+            
+        # Update pulse effects for menu buttons
+        if self.showing_menu:
+            for button in self.menu_buttons.values():
+                if button['hover']:
+                    button['pulse'].update()
             
     def draw(self) -> None:
         """Draw the main window with all its elements."""
@@ -143,41 +90,15 @@ class Main_Window:
         window_width = self.screen.get_width()
         window_height = self.screen.get_height()
         
-        # Draw background if we're past the title phase
-        if not self.showing_title:
-            # Get pre-scaled background
-            scaled_bg = self.get_scaled_background(window_width, window_height)
+        # Get pre-scaled background
+        scaled_bg = self.get_scaled_background(window_width, window_height)
             
-            # Center the background
-            bg_x = (window_width - scaled_bg.get_width()) // 2
-            bg_y = (window_height - scaled_bg.get_height()) // 2
-            
-            # Apply fade effect to background during transition
-            if self.transitioning:
-                scaled_bg.set_alpha(self.in_effect.get_state())
-            else:
-                scaled_bg.set_alpha(255)  # Fully visible after transition
-            
-            # Draw the background
-            self.screen.blit(scaled_bg, (bg_x, bg_y))
+        # Center the background
+        bg_x = (window_width - scaled_bg.get_width()) // 2
+        bg_y = (window_height - scaled_bg.get_height()) // 2
         
-        # Draw title if we're in title phase or transitioning
-        if self.showing_title or self.transitioning:
-            # Get current fade alpha from effect
-            alpha = self.in_effect.get_state() if self.showing_title else self.out_effect.get_state()
-            
-            # Create a copy of the title image with current alpha
-            title_surface = self.title_image.copy()
-            title_surface.set_alpha(alpha)
-            
-            # Draw the title
-            self.screen.blit(title_surface, self.title_rect)
-            
-            # Draw "Press Enter or Click to Start" text if fade is complete and in title phase
-            if self.showing_title and alpha >= 255:
-                start_text = config.FONTS['subtitle'].render("Press Enter or Click to Start", True, (200, 200, 200))
-                text_rect = start_text.get_rect(center=(window_width // 2, int(window_height * 0.9)))
-                self.screen.blit(start_text, text_rect)
+        # Draw the background
+        self.screen.blit(scaled_bg, (bg_x, bg_y))
                 
         # Draw menu if active
         if self.showing_menu:
@@ -192,24 +113,37 @@ class Main_Window:
         window_width = self.screen.get_width()
         window_height = self.screen.get_height()
         
-        # Calculate button size (1/10th of screen height)
-        target_height = window_height // 10
+        # Calculate button sizes
+        board_height = window_height // 5  # 1/5th of screen height for board button
+        deck_height = window_height // 10  # Keep deck buttons at 1/10th
         
         # Center positions
         center_x = window_width // 2
         center_y = window_height // 2
         
-        # Scale all button images to target height while maintaining aspect ratio
-        for button_id, button in self.menu_buttons.items():
-            img = button['image']
+        # Scale board button image
+        board_img = self.menu_buttons['add_board']['image']
+        aspect_ratio = board_img.get_width() / board_img.get_height()
+        new_width = int(board_height * aspect_ratio)
+        self.menu_buttons['add_board']['image'] = pygame.transform.scale(board_img, (new_width, board_height))
+        
+        # Initialize board button pulse effect with the scaled size
+        self.menu_buttons['add_board']['pulse'] = EffectFactory.create_effect_from_config(
+            self.EFFECT_SETTINGS['button_effect'],
+            size=(new_width, board_height)
+        )
+        
+        # Scale deck button images
+        for button_id in ['add_deck_p1', 'add_deck_p2']:
+            img = self.menu_buttons[button_id]['image']
             aspect_ratio = img.get_width() / img.get_height()
-            new_width = int(target_height * aspect_ratio)
-            button['image'] = pygame.transform.scale(img, (new_width, target_height))
+            new_width = int(deck_height * aspect_ratio)
+            self.menu_buttons[button_id]['image'] = pygame.transform.scale(img, (new_width, deck_height))
             
-            # Initialize pulse effect with the scaled size
-            button['pulse'] = EffectFactory.create_effect_from_config(
+            # Initialize deck button pulse effect with the scaled size
+            self.menu_buttons[button_id]['pulse'] = EffectFactory.create_effect_from_config(
                 self.EFFECT_SETTINGS['button_effect'],
-                size=(new_width, target_height)
+                size=(new_width, deck_height)
             )
         
         # Board button (top)
@@ -281,40 +215,27 @@ class Main_Window:
         
     def handle_event(self, event: pygame.event.Event) -> bool:
         """Handle pygame events."""
-        if event.type == pygame.MOUSEBUTTONDOWN and self.showing_title:
-            # Handle click on start screen
-            self.start_transition()
-            return True
-        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN and self.showing_title:
-            # Handle Enter key on start screen
-            self.start_transition()
-            return True
-        elif event.type == pygame.MOUSEMOTION:
-            # Handle mouse motion for hover effects
-            if not self.showing_title and self.transition_complete:
-                return self.handle_menu_motion(event)
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            # Handle menu button clicks
-            if self.showing_menu:
-                should_show_panel, panel_type = self.handle_menu_click(event)
-                if should_show_panel:
-                    self.show_panel(panel_type)
-                    return True
-                    
-        # Let active panel handle events if it exists
-        if self.active_panel and self.active_panel.handle_event(event):
-            return True
+        # Handle menu interactions
+        if self.showing_menu:
+            if self.handle_menu_motion(event):
+                return True
+            if self.handle_menu_click(event)[0]:
+                return True
+                
+        # Handle panel interactions
+        if self.active_panel:
+            return self.active_panel.handle_event(event)
             
         return False
         
     def show_panel(self, panel_type: str) -> None:
-        """Show a specific panel and hide others."""
+        """Show a specific panel."""
         if panel_type == 'board':
-            self.board_panel.show()
             self.active_panel = self.board_panel
+            self.board_panel.show()
         elif panel_type == 'deck':
-            self.deck_panel.show()
             self.active_panel = self.deck_panel
+            self.deck_panel.show()
             
     def hide_panel(self, panel_type: str) -> None:
         """Hide a specific panel."""
@@ -322,48 +243,44 @@ class Main_Window:
             self.board_panel.hide()
         elif panel_type == 'deck':
             self.deck_panel.hide()
-        if self.active_panel in [self.board_panel, self.deck_panel]:
-            self.active_panel = None
-            
+        self.active_panel = None
+        self.showing_menu = True
+        
     def get_active_panel(self) -> Panel | None:
         """Get the currently active panel."""
         return self.active_panel
         
     def get_scaled_background(self, window_width: int, window_height: int) -> pygame.Surface:
-        """Get or create a scaled background for the given window size."""
-        # Calculate scale for current window size
-        scale = min(
-            window_width / self.background_rect.width,
-            window_height / self.background_rect.height
-        )
-        scaled_width = int(self.background_rect.width * scale)
-        scaled_height = int(self.background_rect.height * scale)
+        """Get a scaled background image for the current window size."""
+        # Create a key for the current size
+        size_key = (window_width, window_height)
         
-        # Check if we have this size cached
-        if (scaled_width, scaled_height) not in self.scaled_backgrounds:
-            # Create and cache new scaled background
-            self.scaled_backgrounds[(scaled_width, scaled_height)] = pygame.transform.scale(
-                self.background_image, 
-                (scaled_width, scaled_height)
-            )
+        # Return cached version if available
+        if size_key in self.scaled_backgrounds:
+            return self.scaled_backgrounds[size_key]
             
-        return self.scaled_backgrounds[(scaled_width, scaled_height)]
+        # Calculate scale to fit window while maintaining aspect ratio
+        bg_width, bg_height = self.background_image.get_size()
+        scale = min(window_width / bg_width, window_height / bg_height)
+        
+        # Create scaled version
+        new_width = int(bg_width * scale)
+        new_height = int(bg_height * scale)
+        scaled_bg = pygame.transform.smoothscale(self.background_image, (new_width, new_height))
+        
+        # Cache the result
+        self.scaled_backgrounds[size_key] = scaled_bg
+        
+        return scaled_bg
         
     def update_scaled_backgrounds(self) -> None:
-        """Pre-calculate scaled backgrounds for common window sizes."""
-        window_width = self.screen.get_width()
-        window_height = self.screen.get_height()
-        
-        # Calculate scale for current window size
-        scale = min(
-            window_width / self.background_rect.width,
-            window_height / self.background_rect.height
-        )
-        scaled_width = int(self.background_rect.width * scale)
-        scaled_height = int(self.background_rect.height * scale)
-        
-        # Cache the scaled background
-        self.scaled_backgrounds[(scaled_width, scaled_height)] = pygame.transform.scale(
-            self.background_image, 
-            (scaled_width, scaled_height)
-        ) 
+        """Update the cache of scaled backgrounds."""
+        self.scaled_backgrounds.clear()
+        # Pre-calculate some common sizes
+        common_sizes = [
+            (1920, 1080),  # Full HD
+            (1280, 720),   # HD
+            (800, 600)     # Common window size
+        ]
+        for width, height in common_sizes:
+            self.get_scaled_background(width, height) 

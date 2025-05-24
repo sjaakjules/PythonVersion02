@@ -3,7 +3,7 @@ import time
 import Util_Config as config
 
 
-class DebugDisplay:
+class Debug_Display:
     """Display debug information on screen."""
     
     def __init__(self, screen: pygame.Surface, clock: pygame.time.Clock):
