@@ -90,28 +90,28 @@ def get_all_single_element() -> List[str]:
     """Returns a list of all Single Element deck URLs."""
     urls = []
     for value in SINGLE_ELEMENT.values():
-        urls.extend(value)
+            urls.extend(value)
     return urls
 
 def get_all_double_element() -> List[str]:
     """Returns a list of all Double Element deck URLs."""
     urls = []
     for value in DOUBLE_ELEMENT.values():
-        urls.extend(value)
+            urls.extend(value)
     return urls
 
 def get_all_triple_element() -> List[str]:
     """Returns a list of all Triple Element deck URLs."""
     urls = []
     for value in TRIPLE_ELEMENT.values():
-        urls.extend(value)
+            urls.extend(value)
     return urls
 
 def get_all_quadruple_element() -> List[str]:
     """Returns a list of all Quadruple Element deck URLs."""
     urls = []
     for value in QUADRUPLE_ELEMENT.values():
-        urls.extend(value)
+            urls.extend(value)
     return urls
 
 def get_all_decks() -> List[str]:

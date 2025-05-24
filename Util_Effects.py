@@ -13,6 +13,7 @@ import math
 import pygame
 from abc import ABC, abstractmethod
 import time
+from typing import Any, Tuple
 
 
 class Effect(ABC):
@@ -21,7 +22,7 @@ class Effect(ABC):
     # Shared clock for all effects
     _clock = pygame.time.Clock()
     
-    def __init__(self, duration: float = None) -> None:
+    def __init__(self, duration: float = 1.0) -> None:
         """
         Initialize the base effect.
         
@@ -29,8 +30,8 @@ class Effect(ABC):
             duration: If set, the effect will complete in this many seconds.
                      If None, the effect will loop indefinitely.
         """
-        self.time = 0.0
         self.duration = duration
+        self.time = 0.0
         self.is_complete = False
         self.last_update = time.time()
     
@@ -106,27 +107,26 @@ class wiggle(Effect):
 
 
 class fade(Effect):
-    def __init__(self, start_alpha: int = 255, end_alpha: int = 128, 
-                 duration: float = 1.0, loop: bool = True) -> None:
+    def __init__(self, start_alpha: int = 0, end_alpha: int = 255, duration: float = 1.0, loop: bool = False) -> None:
         """
         Initialize a fade effect for smooth alpha transitions.
         
         Args:
             start_alpha: Starting alpha value (0-255)
             end_alpha: Target alpha value (0-255)
-            duration: Time in seconds for one complete fade cycle
-            loop: Whether to loop the fade animation
+            duration: Time in seconds for the complete fade (default: 1.0)
+            loop: Whether to loop the animation (default: False)
         """
-        super().__init__(duration if not loop else None)
+        super().__init__(duration)
         self.start_alpha = start_alpha
         self.end_alpha = end_alpha
         self.loop = loop
-        
+    
     def update(self) -> None:
         """Update the fade animation state."""
         if self.is_complete:
             return
-            
+        
         dt = Effect._clock.tick() / 1000.0  # Convert to seconds
         self.time += dt
         
@@ -137,7 +137,7 @@ class fade(Effect):
         else:
             if self.time >= self.duration:
                 self.time = 0.0
-                
+    
     def get_state(self) -> int:
         """
         Get the current alpha value.
@@ -145,20 +145,11 @@ class fade(Effect):
         Returns:
             Current alpha value (0-255)
         """
-        if not self.loop and self.is_complete:
+        if self.duration == 0:
             return self.end_alpha
-            
-        progress = self.time / self.duration
         
-        if self.loop:
-            # Use sine wave for smooth looping
-            alpha_range = self.start_alpha - self.end_alpha
-            current_alpha = self.start_alpha - (alpha_range * math.sin(progress * math.pi))
-        else:
-            # Use linear interpolation for non-looping fades
-            current_alpha = self.start_alpha + (self.end_alpha - self.start_alpha) * progress
-            
-        return int(current_alpha)
+        progress = self.time / self.duration
+        return int(self.start_alpha + (self.end_alpha - self.start_alpha) * progress)
 
 
 class greyscale(Effect):
@@ -215,19 +206,19 @@ class greyscale(Effect):
 def flip(card):
     print(f"Flip effect on {card}")
 
-    
+
 class pulse(Effect):
-    def __init__(self, size: tuple[int, int], scale_factor: float = 0.15, speed: float = 0.1) -> None:
+    def __init__(self, size: tuple[int, int], scale_factor: float = 0.1, speed: float = 1.0) -> None:
         """
         Initialize a pulse effect for hover animations.
         
         Args:
             size: Tuple of (width, height) for the base size
-            scale_factor: How much to scale up/down (default: 0.15 = 15%)
-            speed: Animation speed (default: 0.1)
+            scale_factor: How much to scale up/down (default: 0.1 = 10%)
+            speed: Animation speed (default: 1.0)
         """
-        super().__init__()
-        self.base_size = size
+        super().__init__(duration=None)  # No duration for continuous pulsing
+        self.original_size = size
         self.scale_factor = scale_factor
         self.speed = speed
         
@@ -238,24 +229,25 @@ class pulse(Effect):
         if self.time >= 2 * math.pi:
             self.time = 0.0
             
-    def get_state(self) -> tuple[tuple[int, int], tuple[int, int]]:
+    def get_state(self) -> tuple[tuple[int, int], tuple[float, float]]:
         """
         Get the current scaled size and offset.
         
         Returns:
             Tuple of (scaled_size, offset)
         """
-        # Use sine wave for smooth pulsing
+        # Calculate scale based on sine wave
         scale = 1.0 + (math.sin(self.time) * self.scale_factor)
-        scaled_size = (
-            int(self.base_size[0] * scale),
-            int(self.base_size[1] * scale)
-        )
-        offset = (
-            (scaled_size[0] - self.base_size[0]) // 2,
-            (scaled_size[1] - self.base_size[1]) // 2
-        )
-        return scaled_size, offset
+        
+        # Calculate new size
+        new_width = int(self.original_size[0] * scale)
+        new_height = int(self.original_size[1] * scale)
+        
+        # Calculate offset to keep center point
+        offset_x = (new_width - self.original_size[0]) / 2
+        offset_y = (new_height - self.original_size[1]) / 2
+        
+        return (new_width, new_height), (offset_x, offset_y)
 
 
 class tap(Effect):
@@ -342,7 +334,7 @@ class slide(Effect):
     def get_state(self) -> tuple[tuple[int, int], tuple[int, int]]:
         """
         Get the current position and offset.
-        
+            
         Returns:
             Tuple of (current_position, offset)
             - current_position: The current (x, y) position

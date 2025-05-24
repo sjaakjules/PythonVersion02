@@ -2,6 +2,7 @@ import pygame
 import Util_Effects as effects
 import Util_Config as config
 
+
 class Panel:
     """Base class for all UI panels/windows."""
     
@@ -17,8 +18,10 @@ class Panel:
         self.screen = screen
         self.width_ratio = width
         self.height_ratio = height
-        self.slide_effect = None
+        self.entrance_effect = None
+        self.exit_effect = None
         self.is_visible = False
+        self.is_exiting = False
         self.surface = None
         self.update_surface()
         
@@ -37,19 +40,27 @@ class Panel:
         self.surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
         
     def show(self) -> None:
-        """Show the panel with a slide effect."""
+        """Show the panel with entrance effect."""
         self.is_visible = True
+        self.is_exiting = False
         window_height = self.screen.get_height()
-        self.slide_effect = effects.slide(
+        self.entrance_effect = effects.slide(
             start_pos=(0, window_height),
             end_pos=(0, int(window_height * 0.05)),
             duration=0.8
         )
         
     def hide(self) -> None:
-        """Hide the panel."""
-        self.is_visible = False
-        self.slide_effect = None
+        """Hide the panel with exit effect."""
+        if not self.is_visible:
+            return
+            
+        self.is_exiting = True
+        self.exit_effect = effects.fade(
+            start_alpha=255,
+            end_alpha=0,
+            duration=0.3
+        )
         
     def handle_event(self, event: pygame.event.Event) -> bool:
         """
@@ -65,12 +76,21 @@ class Panel:
         
     def update(self) -> None:
         """Update panel state and effects."""
-        if self.slide_effect:
-            self.slide_effect.update()
+        if self.entrance_effect:
+            self.entrance_effect.update()
+            if self.entrance_effect.is_complete:
+                self.entrance_effect = None
+                
+        if self.exit_effect:
+            self.exit_effect.update()
+            if self.exit_effect.is_complete:
+                self.is_visible = False
+                self.is_exiting = False
+                self.exit_effect = None
             
     def draw(self) -> None:
         """Draw the panel."""
-        if not self.is_visible:
+        if not self.is_visible and not self.is_exiting:
             return
             
         # Clear the surface
@@ -82,10 +102,15 @@ class Panel:
         # Draw content (to be implemented by subclasses)
         self.draw_content()
         
-        # Apply slide effect if active
-        if self.slide_effect:
-            current_pos, _ = self.slide_effect.get_state()
+        # Apply effects
+        if self.entrance_effect:
+            current_pos, _ = self.entrance_effect.get_state()
             self.screen.blit(self.surface, (self.x, current_pos[1]))
+        elif self.exit_effect:
+            alpha = self.exit_effect.get_state()
+            temp_surface = self.surface.copy()
+            temp_surface.set_alpha(alpha)
+            self.screen.blit(temp_surface, (self.x, self.y))
         else:
             self.screen.blit(self.surface, (self.x, self.y))
             
