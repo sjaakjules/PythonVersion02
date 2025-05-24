@@ -5,6 +5,7 @@ from GUI_Panel import Panel
 from typing import Dict, List, Optional
 import Curiosa_Decks
 
+
 class pDeck_Selection(Panel):
     # Effect settings
     EFFECT_SETTINGS = {

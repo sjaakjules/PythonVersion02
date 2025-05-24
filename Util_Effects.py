@@ -68,7 +68,7 @@ class Effect(ABC):
 
 class wiggle(Effect):
     def __init__(self, size: tuple[int, int], angle_range: float = 5.0, speed: float = 0.1, 
-                 pivot: tuple[float, float] = None) -> None:
+                 pivot: tuple[float, float] = None, loop: bool = True) -> None:
         """
         Initialize a wiggle effect for rotation animations.
         
@@ -78,18 +78,29 @@ class wiggle(Effect):
             speed: Animation speed (default: 0.1)
             pivot: Optional pivot point (x, y) as percentage of size (0.0-1.0). 
                   If None, uses center (0.5, 0.5)
+            loop: Whether to loop the animation (default: True)
+                  If False, will stop at the maximum angle
         """
-        super().__init__()
+        super().__init__(duration=None if loop else 1.0)  # Duration only used for non-looping
         self.size = size
         self.angle_range = math.radians(angle_range)  # Convert to radians
         self.speed = speed
         self.pivot = pivot if pivot else (0.5, 0.5)  # Default to center
+        self.loop = loop
         
     def update(self) -> None:
         """Update the wiggle animation state."""
-        self.time += self.speed
-        if self.time >= 2 * math.pi:
-            self.time = 0.0
+        dt = Effect._clock.tick() / 1000.0  # Convert to seconds
+        self.time += dt * self.speed
+        
+        if self.loop:
+            if self.time >= 2 * math.pi:
+                self.time = 0.0
+        else:
+            # Stop at maximum angle
+            if self.time >= math.pi / 2:
+                self.time = math.pi / 2
+                self.is_complete = True
             
     def get_state(self) -> tuple[float, tuple[int, int]]:
         """
@@ -208,26 +219,42 @@ def flip(card):
 
 
 class pulse(Effect):
-    def __init__(self, size: tuple[int, int], scale_factor: float = 0.1, speed: float = 1.0) -> None:
+    def __init__(self, size: tuple[int, int], scale_factor: float = 0.1, speed: float = 1.0,
+                 loop: bool = True) -> None:
         """
         Initialize a pulse effect for hover animations.
         
         Args:
             size: Tuple of (width, height) for the base size
             scale_factor: How much to scale up/down (default: 0.1 = 10%)
+                        Positive = grow first, negative = shrink first
             speed: Animation speed (default: 1.0)
+            loop: Whether to loop the animation (default: True)
+                  If False, will stop at extreme point (max size if growing, min size if shrinking)
         """
-        super().__init__(duration=None)  # No duration for continuous pulsing
+        super().__init__(duration=None if loop else 1.0)  # Duration only used for non-looping
         self.original_size = size
         self.scale_factor = scale_factor
         self.speed = speed
+        self.loop = loop
+        self.growing = scale_factor > 0  # Track if we're growing or shrinking
         
     def update(self) -> None:
         """Update the pulse animation state."""
         dt = Effect._clock.tick() / 1000.0  # Convert to seconds
         self.time += dt * self.speed
-        if self.time >= 2 * math.pi:
-            self.time = 0.0
+        
+        if self.loop:
+            if self.time >= 2 * math.pi:
+                self.time = 0.0
+        else:
+            # Stop at extreme point based on direction
+            if self.growing and self.time >= math.pi / 2:
+                self.time = math.pi / 2
+                self.is_complete = True
+            elif not self.growing and self.time >= 3 * math.pi / 2:
+                self.time = 3 * math.pi / 2
+                self.is_complete = True
             
     def get_state(self) -> tuple[tuple[int, int], tuple[float, float]]:
         """
@@ -237,7 +264,9 @@ class pulse(Effect):
             Tuple of (scaled_size, offset)
         """
         # Calculate scale based on sine wave
-        scale = 1.0 + (math.sin(self.time) * self.scale_factor)
+        # Adjust phase based on direction (growing vs shrinking)
+        phase = 0 if self.growing else math.pi
+        scale = 1.0 + (math.sin(self.time + phase) * abs(self.scale_factor))
         
         # Calculate new size
         new_width = int(self.original_size[0] * scale)
